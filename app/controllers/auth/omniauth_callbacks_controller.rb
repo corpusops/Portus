@@ -105,21 +105,23 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     teams = []
     np = 1
     # groups are paginated !
-    while np.present?
+    while np > 0
       resp = Faraday.get url, { page: np, per_page: per_page,
                                 access_token: token }.compact
-      teams.concat JSON.parse resp.body
       # -> gitlab: x-next-page is in headers
       # -> github: Link is in headers
       #            and if we are not on last page, we have a last link
-      if (resp.headers.key? "x-next-page") ||
-         ((resp.headers.key? "Link") &&
-          (resp.headers["Link"].include? 'rel="last"'))
+      if ((resp.headers.key?("x-next-page") &&
+           !resp.headers["x-next-page"].blank?) ||
+          (resp.headers.key?("Link") &&
+           resp.headers["Link"].include?('rel="last"') &&
+           !resp.headers.key?("x-next-page")))
         np += 1
       # Either other cases or no last/next page, we stop iteration
       else
-        np = ""
+        np = 0
       end
+      teams.concat JSON.parse resp.body
     end
 
     # Check if the user is member of allowed group.
