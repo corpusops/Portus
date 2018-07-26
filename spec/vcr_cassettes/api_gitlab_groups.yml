@@ -83,7 +83,7 @@ http_interactions:
       - ""
     body:
       encoding: UTF-8
-      string: '[{"name":"group"}]'
+      string: '[{"name":"group2"}]'
     http_version:
   recorded_at: Thu, 27 Jul 2017 14:17:23 GMT
 recorded_with: VCR 3.0.3
