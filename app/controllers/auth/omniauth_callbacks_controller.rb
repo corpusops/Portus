@@ -110,10 +110,15 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
                                access_token: token}.compact
       teams.concat JSON.parse resp.body
       # if x-next-page is in headers we have a gitlab server
-      # else we are in other cases (mostly github)
       if resp.headers.has_key? "x-next-page"
         np = resp.headers.fetch "x-next-page", ""
+      # else if we have Link header, it's github
+      # and if we are not on last page, we have a last link !
+      elsif resp.headers.has_key? "Link" and resp.headers['Link'].include? 'rel="last"'
+          np = "#{np.to_i + 1}"
+      # Either other cases or no last/next page, we stop iterartion
       else
+        np = ""
       end
     end
 
