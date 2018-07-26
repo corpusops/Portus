@@ -104,7 +104,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     token = request.env["omniauth.auth"].credentials["token"]
     teams = []
     # groups are paginated !
-    page = 0
+    np = 0
     while true
       resp = Faraday.get url, { page: np, per_page: per_page,
                                 access_token: token }.compact
