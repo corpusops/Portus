@@ -72,7 +72,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
         # Get user's groups.
         server = conf.fetch("server", "")
         server = server.presence || "https://gitlab.com"
-        is_member = member_of("#{server}/api/v4/groups", per_page = 100) do |g|
+        is_member = member_of("#{server}/api/v4/groups", per_page: 100) do |g|
           g["name"] == conf["group"]
         end
         "The Gitlab account isn't in allowed group." unless is_member
@@ -99,7 +99,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   end
 
   # Get user's teams and check if one match to restriction.
-  def member_of(url, per_page = nil)
+  def member_of(url, per_page: nil)
     # Get user's groups.
     token = request.env["omniauth.auth"].credentials["token"]
     teams = []
@@ -113,8 +113,8 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
       # -> github: Link is in headers
       #            and if we are not on last page, we have a last link
       if (resp.headers.key? "x-next-page") ||
-          ((resp.headers.key? "Link") &&
-           (resp.headers["Link"].include? 'rel="last"'))
+         ((resp.headers.key? "Link") &&
+          (resp.headers["Link"].include? 'rel="last"'))
         np += 1
       # Either other cases or no last/next page, we stop iteration
       else
