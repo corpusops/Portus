@@ -72,7 +72,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
         # Get user's groups.
         server = conf.fetch("server", "")
         server = server.presence || "https://gitlab.com"
-        is_member = member_of("#{server}/api/v4/groups", per_page=100) do |g|
+        is_member = member_of("#{server}/api/v4/groups", per_page = 100) do |g|
           g["name"] == conf["group"]
         end
         "The Gitlab account isn't in allowed group." unless is_member
