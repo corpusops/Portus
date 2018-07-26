@@ -116,7 +116,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
       # and if we are not on last page, we have a last link !
       elsif resp.headers.has_key? "Link" and resp.headers['Link'].include? 'rel="last"'
           np = "#{np.to_i + 1}"
-      # Either other cases or no last/next page, we stop iterartion
+      # Either other cases or no last/next page, we stop iteration
       else
         np = ""
       end
