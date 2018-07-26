@@ -2,7 +2,7 @@
 http_interactions:
 - request:
     method: get
-    uri: https://api.github.com/user/teams?access_token=1234567890
+    uri: https://api.github.com/user/teams?access_token=1234567890&page=1
     body:
       encoding: US-ASCII
       string: ''
