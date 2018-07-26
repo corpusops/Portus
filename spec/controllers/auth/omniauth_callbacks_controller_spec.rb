@@ -156,7 +156,8 @@ describe Auth::OmniauthCallbacksController do
 
   describe "GET custom #gitlab" do
     before do
-      APP_CONFIG["oauth"] = { "gitlab" => { "server": "https://gitlab.com", "domain" => "", "group" => "" } }
+      APP_CONFIG["oauth"] = { "gitlab" => { "server": "https://gitlab.com",
+                                            "domain" => "", "group" => "" } }
       OmniAuth.config.add_mock(:gitlab,
                                provider:    "gitlab",
                                uid:         "12345",
