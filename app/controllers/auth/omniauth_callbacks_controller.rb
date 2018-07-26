@@ -71,7 +71,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
       if conf["group"].present?
         # Get user's groups.
         server = conf.fetch("server", "")
-        server = server.blank? ? "https://gitlab.com" : server
+        server = server.presence || "https://gitlab.com"
         is_member = member_of("#{server}/api/v4/groups?per_page=100") do |g|
           g["name"] == conf["group"]
         end
@@ -105,10 +105,10 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     teams = []
     np = "1"
     # groups are paginated !
-    while ! np.blank?
+    while np.present?
       resp = Faraday.get "#{url}&page=#{np}", access_token: token
       teams.concat JSON.parse resp.body
-      np = resp.headers.fetch "x-next-page" ""
+      np = resp.headers.fetch "x-next-page", ""
     end
 
     # Check if the user is member of allowed group.
