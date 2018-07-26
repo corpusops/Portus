@@ -72,7 +72,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
         # Get user's groups.
         server = conf.fetch("server", "")
         server = server.presence || "https://gitlab.com"
-        is_member = member_of("#{server}/api/v4/groups") do |g|
+        is_member = member_of("#{server}/api/v4/groups?per_page=100") do |g|
           g["name"] == conf["group"]
         end
         "The Gitlab account isn't in allowed group." unless is_member
@@ -102,8 +102,14 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   def member_of(url)
     # Get user's groups.
     token = request.env["omniauth.auth"].credentials["token"]
-    resp = Faraday.get url, access_token: token
-    teams = JSON.parse resp.body
+    teams = []
+    np = "1"
+    # groups are paginated !
+    while np.present?
+      resp = Faraday.get "#{url}&page=#{np}", access_token: token
+      teams.concat JSON.parse resp.body
+      np = resp.headers.fetch "x-next-page", ""
+    end
 
     # Check if the user is member of allowed group.
     !teams.find_all { |t| yield(t) }.empty?
