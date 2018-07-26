@@ -108,7 +108,6 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     while np.present?
       resp = Faraday.get url, {page: np, per_page: per_page,
                                access_token: token}.compact
-      puts resp.to_yaml
       teams.concat JSON.parse resp.body
       # if x-next-page is in headers we have a gitlab server
       # else we are in other cases (mostly github)
