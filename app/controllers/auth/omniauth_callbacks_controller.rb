@@ -104,8 +104,8 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     token = request.env["omniauth.auth"].credentials["token"]
     teams = []
     # groups are paginated !
-    np = 1
-    while true
+    np = 0
+    loop do
       resp = Faraday.get url, { page: np, per_page: per_page,
                                 access_token: token }.compact
       teams.concat JSON.parse resp.body
@@ -118,9 +118,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
                     resp.headers["Link"].include?('rel="last"') && \
                     !resp.headers.key?("x-next-page")
       # if no last/next page, we stop iteration
-      if !(gitlab_next || github_next)
-        break
-      end
+      break unless !(gitlab_next || github_next)
       np += 1
     end
 
