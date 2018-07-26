@@ -106,7 +106,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     np = 1
     # groups are paginated !
     while np.present?
-      resp = Faraday.get url, { page: np.to_i, per_page: per_page,
+      resp = Faraday.get url, { page: np, per_page: per_page,
                                 access_token: token }.compact
       teams.concat JSON.parse resp.body
       # -> gitlab: x-next-page is in headers
