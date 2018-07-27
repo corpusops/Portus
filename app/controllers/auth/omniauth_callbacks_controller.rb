@@ -1,21 +1,8 @@
 # frozen_string_literal: true
 
-def github_next(resp)
-  # -> gitlab: x-next-page is in headers, and not empty
-  resp.headers.key?("x-next-page") && \
-    resp.headers["x-next-page"].present?
-end
-
-def gitlab_next(resp)
-  # -> github: Link is in headers
-  #            and if we are not on last page, we have a last link
-  resp.headers.key?("Link") && \
-    resp.headers["Link"].include?('rel="last"') && \
-    !resp.headers.key?("x-next-page")
-end
-
 class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   skip_before_action :verify_authenticity_token
+
 
   # rubocop:disable Rails/LexicallyScopedActionFilter
   before_action :check_user, except: [:failure]
@@ -37,6 +24,22 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   alias gitlab google_oauth2
   # Callback for Bitbucket.
   alias bitbucket google_oauth2
+
+  protected
+
+  def github_next(resp)
+    # -> gitlab: x-next-page is in headers, and not empty
+    resp.headers.key?("x-next-page") && \
+      resp.headers["x-next-page"].present?
+  end
+  
+  def gitlab_next(resp)
+    # -> github: Link is in headers
+    #            and if we are not on last page, we have a last link
+    resp.headers.key?("Link") && \
+      resp.headers["Link"].include?('rel="last"') && \
+      !resp.headers.key?("x-next-page")
+  end
 
   private
 
@@ -112,11 +115,11 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   end
 
   # Get user's teams and check if one match to restriction.
+  # This method uses pagination, and the  caller can specify the number of teams per page in the `per_page` parameter.
   def member_of(url, per_page: nil)
     # Get user's groups.
     token = request.env["omniauth.auth"].credentials["token"]
     teams = []
-    # groups are paginated !
     np = 0
     loop do
       np += 1
