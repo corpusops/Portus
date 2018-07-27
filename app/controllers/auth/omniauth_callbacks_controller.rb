@@ -1,5 +1,19 @@
 # frozen_string_literal: true
 
+def github_next(resp)
+  # -> gitlab: x-next-page is in headers, and not empty
+  resp.headers.key?("x-next-page") && \
+    resp.headers["x-next-page"].present?
+end
+
+def gitlab_next(resp)
+  # -> github: Link is in headers
+  #            and if we are not on last page, we have a last link
+  resp.headers.key?("Link") && \
+    resp.headers["Link"].include?('rel="last"') && \
+    !resp.headers.key?("x-next-page")
+end
+
 class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   skip_before_action :verify_authenticity_token
 
@@ -70,8 +84,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     when "gitlab"
       if conf["group"].present?
         # Get user's groups.
-        server = conf.fetch("server", "")
-        server = server.presence || "https://gitlab.com"
+        server = conf.fetch("server", "").presence || "https://gitlab.com"
         is_member = member_of("#{server}/api/v4/groups", per_page: 100) do |g|
           g["name"] == conf["group"]
         end
@@ -110,16 +123,8 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
       resp = Faraday.get url, { page: np, per_page: per_page,
                                 access_token: token }.compact
       teams.concat JSON.parse resp.body
-      # -> gitlab: x-next-page is in headers
-      # -> github: Link is in headers
-      #            and if we are not on last page, we have a last link
-      gitlab_next = resp.headers.key?("x-next-page") && \
-                    resp.headers["x-next-page"].present?
-      github_next = resp.headers.key?("Link") && \
-                    resp.headers["Link"].include?('rel="last"') && \
-                    !resp.headers.key?("x-next-page")
       # if no last/next page, we stop iteration
-      break unless gitlab_next || github_next
+      break unless gitlab_next(resp) || github_next(resp)
     end
 
     # Check if the user is member of allowed group.
