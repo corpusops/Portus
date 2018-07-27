@@ -31,7 +31,7 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     resp.headers.key?("x-next-page") && \
       resp.headers["x-next-page"].present?
   end
-  
+
   def gitlab_next(resp)
     # -> github: Link is in headers
     #            and if we are not on last page, we have a last link
