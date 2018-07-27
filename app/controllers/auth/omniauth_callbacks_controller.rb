@@ -114,7 +114,8 @@ class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   end
 
   # Get user's teams and check if one match to restriction.
-  # This method uses pagination, and the  caller can specify the number of teams per page in the `per_page` parameter.
+  # This method uses pagination, and the caller can specify
+  # the number of teams per page in the `per_page` parameter.
   def member_of(url, per_page: nil)
     # Get user's groups.
     token = request.env["omniauth.auth"].credentials["token"]
