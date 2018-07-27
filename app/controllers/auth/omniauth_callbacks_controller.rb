@@ -3,7 +3,6 @@
 class Auth::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   skip_before_action :verify_authenticity_token
 
-
   # rubocop:disable Rails/LexicallyScopedActionFilter
   before_action :check_user, except: [:failure]
   # rubocop:enable Rails/LexicallyScopedActionFilter
