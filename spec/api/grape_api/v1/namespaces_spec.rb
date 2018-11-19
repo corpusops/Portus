@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-describe API::V1::Namespaces do
+describe API::V1::Namespaces, type: :request do
   let!(:admin) { create(:admin) }
   let!(:owner) { create(:user) }
   let!(:contributor) { create(:user) }
@@ -40,21 +40,46 @@ describe API::V1::Namespaces do
 
     context "as admin" do
       it "returns list of accessible namespaces" do
-        get "/api/v1/namespaces", nil, @admin_header
+        get "/api/v1/namespaces", params: nil, headers: @admin_header
 
-        # global + personal + weird ones that I have no idea where it comes from
-        # so, magic number :(
+        # global + admin + 4 users + 1 from who knows where
         namespaces = JSON.parse(response.body)
         expect(response).to have_http_status(:success)
         expect(namespaces.length).to eq(7)
+      end
+
+      it "returns list of all accessible namespaces paginated" do
+        get "/api/v1/namespaces", params: { per_page: 5 }, headers: @admin_header
+
+        namespaces = JSON.parse(response.body)
+        expect(response).to have_http_status(:success)
+        expect(namespaces.length).to eq(5)
+      end
+
+      it "returns list of all accessible namespaces paginated (page 2)" do
+        get "/api/v1/namespaces", params: { per_page: 5, page: 2 }, headers: @admin_header
+
+        namespaces = JSON.parse(response.body)
+        expect(response).to have_http_status(:success)
+        expect(namespaces.length).to eq(2)
+      end
+
+      it "returns list of all accessible namespaces ordered" do
+        get "/api/v1/namespaces",
+            params:  { sort_attr: "id", sort_order: "desc", per_page: 6 },
+            headers: @admin_header
+
+        namespaces = JSON.parse(response.body)
+        namespaces.each_slice(2) do |a, b|
+          expect(a["id"]).to be > b["id"]
+        end
       end
     end
 
     context "as regular user" do
       it "returns list of accessible namespaces" do
-        get "/api/v1/namespaces", nil, @owner_header
+        get "/api/v1/namespaces", params: nil, headers: @owner_header
 
-        # only personal one
         namespaces = JSON.parse(response.body)
         expect(response).to have_http_status(:success)
         expect(namespaces.length).to eq(1)
@@ -65,7 +90,7 @@ describe API::V1::Namespaces do
   context "GET /api/v1/namespaces/:id" do
     it "returns a namespace" do
       namespace = create(:namespace, visibility: public_visibility, team: team)
-      get "/api/v1/namespaces/#{namespace.id}", nil, @admin_header
+      get "/api/v1/namespaces/#{namespace.id}", params: nil, headers: @admin_header
 
       namespace_parsed = JSON.parse(response.body)
       expect(response).to have_http_status(:success)
@@ -74,7 +99,7 @@ describe API::V1::Namespaces do
     end
 
     it "returns 404 if it doesn't exist" do
-      get "/api/v1/namespaces/222", nil, @admin_header
+      get "/api/v1/namespaces/222", params: nil, headers: @admin_header
 
       expect(response).to have_http_status(:not_found)
     end
@@ -84,7 +109,7 @@ describe API::V1::Namespaces do
     it "returns list of repositories from a namespace" do
       namespace = create(:namespace, visibility: public_visibility, team: team)
       repository = create(:repository, namespace: namespace)
-      get "/api/v1/namespaces/#{namespace.id}/repositories", nil, @admin_header
+      get "/api/v1/namespaces/#{namespace.id}/repositories", params: nil, headers: @admin_header
 
       repositories = JSON.parse(response.body)
       expect(response).to have_http_status(:success)
@@ -107,7 +132,7 @@ describe API::V1::Namespaces do
 
     context "as admin" do
       it "creates a namespace" do
-        post "/api/v1/namespaces", valid_attributes, @admin_header
+        post "/api/v1/namespaces", params: valid_attributes, headers: @admin_header
 
         namespace = Namespace.last
         namespace_parsed = JSON.parse(response.body)
@@ -120,7 +145,7 @@ describe API::V1::Namespaces do
         APP_CONFIG["user_permission"]["create_namespace"]["enabled"] = false
 
         expect do
-          post "/api/v1/namespaces", valid_attributes, @admin_header
+          post "/api/v1/namespaces", params: valid_attributes, headers: @admin_header
         end.to change(Namespace, :count).by(1)
 
         namespace = Namespace.last
@@ -133,7 +158,7 @@ describe API::V1::Namespaces do
 
     context "as owner" do
       it "creates a namespace" do
-        post "/api/v1/namespaces", valid_attributes, @owner_header
+        post "/api/v1/namespaces", params: valid_attributes, headers: @owner_header
 
         namespace = Namespace.last
         namespace_parsed = JSON.parse(response.body)
@@ -145,7 +170,7 @@ describe API::V1::Namespaces do
       it "returns 403 if feature is disabled" do
         APP_CONFIG["user_permission"]["create_namespace"]["enabled"] = false
 
-        post "/api/v1/namespaces", valid_attributes, @owner_header
+        post "/api/v1/namespaces", params: valid_attributes, headers: @owner_header
 
         expect(response).to have_http_status(:forbidden)
       end
@@ -154,13 +179,13 @@ describe API::V1::Namespaces do
     context "as contributor" do
       it "is not possible to create a namespace inside of a hidden team" do
         params = valid_attributes.merge(team: hidden_team.name)
-        post "/api/v1/namespaces", params, @contributor_header
+        post "/api/v1/namespaces", params: params, headers: @contributor_header
 
         expect(response).to have_http_status(:not_found)
       end
 
       it "creates a new namespace" do
-        post "/api/v1/namespaces", valid_attributes, @contributor_header
+        post "/api/v1/namespaces", params: valid_attributes, headers: @contributor_header
 
         namespace = Namespace.last
         namespace_parsed = JSON.parse(response.body)
@@ -172,7 +197,7 @@ describe API::V1::Namespaces do
       it "returns 403 if feature is disabled" do
         APP_CONFIG["user_permission"]["create_namespace"]["enabled"] = false
 
-        post "/api/v1/namespaces", valid_attributes, @owner_header
+        post "/api/v1/namespaces", params: valid_attributes, headers: @owner_header
 
         expect(response).to have_http_status(:forbidden)
       end
@@ -180,7 +205,7 @@ describe API::V1::Namespaces do
 
     context "as viewer" do
       it "returns 403 when tries to create a namespace" do
-        post "/api/v1/namespaces", valid_attributes, @viewer_header
+        post "/api/v1/namespaces", params: valid_attributes, headers: @viewer_header
 
         expect(response).to have_http_status(:forbidden)
       end
@@ -188,14 +213,14 @@ describe API::V1::Namespaces do
 
     context "as generic user" do
       it "returns 403 when tries to create a namespace" do
-        post "/api/v1/namespaces", valid_attributes, @user_header
+        post "/api/v1/namespaces", params: valid_attributes, headers: @user_header
 
         expect(response).to have_http_status(:forbidden)
       end
     end
 
     it "returns 400 if invalid params" do
-      post "/api/v1/namespaces", invalid_attributes, @admin_header
+      post "/api/v1/namespaces", params: invalid_attributes, headers: @admin_header
 
       expect(response).to have_http_status(:bad_request)
     end
@@ -205,15 +230,15 @@ describe API::V1::Namespaces do
         "CONTENT_TYPE" => "application/json",
         "ACCEPT"       => "application/json"
       )
-      post "/api/v1/namespaces", "{", @admin_header
+      post "/api/v1/namespaces", params: "{", headers: @admin_header
       expect(response).to have_http_status(:bad_request)
 
       resp = JSON.parse(response.body)
-      expect(resp["message"]).to match(/There was a problem in the JSON you submitted/)
+      expect(resp["message"]).to match(%r{When specifying application/json as content-type})
     end
 
     it "returns 422 if invalid values" do
-      post "/api/v1/namespaces", { name: "", team: team.name }, @admin_header
+      post "/api/v1/namespaces", params: { name: "", team: team.name }, headers: @admin_header
 
       parsed = JSON.parse(response.body)
       expect(response).to have_http_status(:unprocessable_entity)
@@ -221,20 +246,26 @@ describe API::V1::Namespaces do
     end
 
     it "returns 404 if team is hidden" do
-      post "/api/v1/namespaces", valid_attributes.merge(team: hidden_team.name), @admin_header
+      post "/api/v1/namespaces",
+           params:  valid_attributes.merge(team: hidden_team.name),
+           headers: @admin_header
 
       expect(response).to have_http_status(:not_found)
     end
 
     it "returns 404 if team doesn't exist" do
-      post "/api/v1/namespaces", valid_attributes.merge(team: "xpto"), @admin_header
+      post "/api/v1/namespaces",
+           params:  valid_attributes.merge(team: "xpto"),
+           headers: @admin_header
 
       expect(response).to have_http_status(:not_found)
     end
 
     it "tracks the creations of new namespaces" do
       expect do
-        post "/api/v1/namespaces", valid_attributes, @admin_header
+        post "/api/v1/namespaces",
+             params:  valid_attributes,
+             headers: @admin_header
       end.to change(PublicActivity::Activity, :count).by(1)
 
       namespace = Namespace.last
@@ -254,7 +285,7 @@ describe API::V1::Namespaces do
     it "deletes a namespace" do
       namespace = create(:namespace, registry: registry, team: team)
 
-      delete "/api/v1/namespaces/#{namespace.id}", nil, @admin_header
+      delete "/api/v1/namespaces/#{namespace.id}", params: nil, headers: @admin_header
       expect(response).to have_http_status(:no_content)
       expect { Namespace.find(namespace.id) }.to raise_exception(ActiveRecord::RecordNotFound)
     end
@@ -264,14 +295,14 @@ describe API::V1::Namespaces do
 
       namespace = create(:namespace, registry: registry, team: team)
 
-      delete "/api/v1/namespaces/#{namespace.id}", nil, @admin_header
+      delete "/api/v1/namespaces/#{namespace.id}", params: nil, headers: @admin_header
       expect(response).to have_http_status(:forbidden)
     end
 
     it "returns 404 when not found" do
       namespace = create(:namespace, registry: registry, team: team)
 
-      delete "/api/v1/namespaces/#{namespace.id + 1}", nil, @admin_header
+      delete "/api/v1/namespaces/#{namespace.id + 1}", params: nil, headers: @admin_header
       expect(response).to have_http_status(:not_found)
     end
 
@@ -284,7 +315,7 @@ describe API::V1::Namespaces do
         raise ::Portus::RegistryClient::RegistryError, "I AM ERROR."
       end
 
-      delete "/api/v1/namespaces/#{namespace.id}", nil, @admin_header
+      delete "/api/v1/namespaces/#{namespace.id}", params: nil, headers: @admin_header
       expect(response).to have_http_status(:unprocessable_entity)
 
       body = JSON.parse(response.body)
@@ -300,7 +331,7 @@ describe API::V1::Namespaces do
       allow_any_instance_of(Namespace).to(receive(:delete_by!).and_return(false))
 
       namespace = create(:namespace, registry: registry, team: team)
-      delete "/api/v1/namespaces/#{namespace.id}", nil, @admin_header
+      delete "/api/v1/namespaces/#{namespace.id}", params: nil, headers: @admin_header
       expect(response).to have_http_status(:unprocessable_entity)
 
       body = JSON.parse(response.body)
@@ -312,7 +343,7 @@ describe API::V1::Namespaces do
     it "returns the proper response when the namespace exists" do
       ns = create(:namespace, visibility: public_visibility, team: team)
 
-      get "/api/v1/namespaces/validate", { name: ns.name }, @admin_header
+      get "/api/v1/namespaces/validate", params: { name: ns.name }, headers: @admin_header
       expect(response).to have_http_status(:success)
 
       data = JSON.parse(response.body)
@@ -321,7 +352,7 @@ describe API::V1::Namespaces do
     end
 
     it "returns the proper response when the namespace does not exist" do
-      get "/api/v1/namespaces/validate", { name: "somename" }, @admin_header
+      get "/api/v1/namespaces/validate", params: { name: "somename" }, headers: @admin_header
       expect(response).to have_http_status(:success)
 
       data = JSON.parse(response.body)
@@ -343,7 +374,9 @@ describe API::V1::Namespaces do
     it "updates namespace" do
       namespace = create :namespace, name: "somerandomone", description: "lala"
 
-      put "/api/v1/namespaces/#{namespace.id}", { namespace: namespace_data }, @admin_header
+      put "/api/v1/namespaces/#{namespace.id}",
+          params:  { namespace: namespace_data },
+          headers: @admin_header
       expect(response).to have_http_status(:success)
 
       n = Namespace.find(namespace.id)
@@ -357,7 +390,7 @@ describe API::V1::Namespaces do
       namespace = create :namespace, visibility: Namespace.visibilities[:visibility_public]
 
       params = { namespace: { visibility: "private" } }
-      put "/api/v1/namespaces/#{namespace.id}", params, @admin_header
+      put "/api/v1/namespaces/#{namespace.id}", params: params, headers: @admin_header
       expect(response).to have_http_status(:success)
 
       n = Namespace.find(namespace.id)
@@ -368,7 +401,9 @@ describe API::V1::Namespaces do
       n = create :namespace, registry: registry
       n2 = create :namespace, registry: registry
 
-      put "/api/v1/namespaces/#{n.id}", { namespace: { name: n2.name } }, @admin_header
+      put "/api/v1/namespaces/#{n.id}",
+          params:  { namespace: { name: n2.name } },
+          headers: @admin_header
       expect(response).to have_http_status(:unprocessable_entity)
 
       data = JSON.parse(response.body)["message"]
@@ -378,7 +413,9 @@ describe API::V1::Namespaces do
     it "returns status not found" do
       create :namespace
       namespace_id = Namespace.maximum(:id) + 1
-      put "/api/v1/namespaces/#{namespace_id}", { namespace: namespace_data }, @admin_header
+      put "/api/v1/namespaces/#{namespace_id}",
+          params:  { namespace: namespace_data },
+          headers: @admin_header
       expect(response).to have_http_status(:not_found)
     end
 
@@ -388,8 +425,8 @@ describe API::V1::Namespaces do
       namespace = create :namespace, team: team
 
       put "/api/v1/namespaces/#{namespace.id}",
-          { namespace: { team: team2.name } },
-          @admin_header
+          params:  { namespace: { team: team2.name } },
+          headers: @admin_header
       expect(response).to have_http_status(:success)
 
       n = Namespace.find(namespace.id)
@@ -401,7 +438,7 @@ describe API::V1::Namespaces do
       namespace = create :namespace, team: team
 
       params = { namespace: { team: team.name + "a" } }
-      put "/api/v1/namespaces/#{namespace.id}", params, @admin_header
+      put "/api/v1/namespaces/#{namespace.id}", params: params, headers: @admin_header
       expect(response).to have_http_status(:not_found)
 
       msg = JSON.parse(response.body)["message"]
@@ -412,20 +449,24 @@ describe API::V1::Namespaces do
       namespace = create :namespace, team: team
       team2 = create(:team)
 
-      put "/api/v1/namespaces/#{namespace.id}", { namespace: { team: team2.name } }, @viewer_header
+      put "/api/v1/namespaces/#{namespace.id}",
+          params:  { namespace: { team: team2.name } },
+          headers: @viewer_header
       expect(response).to have_http_status(:forbidden)
     end
 
     it "does not allow to change the description by viewers" do
       namespace = create :namespace, team: team
-      put "/api/v1/namespaces/#{namespace.id}", { namespace: namespace_data }, @viewer_header
+      put "/api/v1/namespaces/#{namespace.id}",
+          params:  { namespace: namespace_data },
+          headers: @viewer_header
       expect(response).to have_http_status(:forbidden)
     end
 
     it "returns a 422 for unknown visibilities" do
       namespace = create :namespace, team: team
       bad_visibility = { namespace: { visibility: "whatever" } }
-      put "/api/v1/namespaces/#{namespace.id}", bad_visibility, @admin_header
+      put "/api/v1/namespaces/#{namespace.id}", params: bad_visibility, headers: @admin_header
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
@@ -435,7 +476,9 @@ describe API::V1::Namespaces do
         old_description = namespace.description
 
         expect do
-          put "/api/v1/namespaces/#{namespace.id}", { namespace: namespace_data }, @owner_header
+          put "/api/v1/namespaces/#{namespace.id}",
+              params:  { namespace: namespace_data },
+              headers: @owner_header
         end.to change(PublicActivity::Activity, :count).by(3)
         expect(response).to have_http_status(:success)
 
@@ -456,8 +499,8 @@ describe API::V1::Namespaces do
 
         expect do
           put "/api/v1/namespaces/#{namespace.id}",
-              { namespace: { team: team2.name } },
-              @owner_header
+              params:  { namespace: { team: team2.name } },
+              headers: @owner_header
         end.to change(PublicActivity::Activity, :count).by(1)
         expect(response).to have_http_status(:success)
 
@@ -474,7 +517,9 @@ describe API::V1::Namespaces do
 
       it "changes the visibility if needed" do
         ns = create :namespace, team: team
-        put "/api/v1/namespaces/#{ns.id}", { namespace: { visibility: "public" } }, @owner_header
+        put "/api/v1/namespaces/#{ns.id}",
+            params:  { namespace: { visibility: "public" } },
+            headers: @owner_header
         expect(response).to have_http_status(:success)
 
         data = JSON.parse(response.body)
@@ -483,7 +528,9 @@ describe API::V1::Namespaces do
 
       it "does not allow changing things from other users" do
         namespace = create :namespace, team: team
-        put "/api/v1/namespaces/#{namespace.id}", { namespace: namespace_data }, @user_header
+        put "/api/v1/namespaces/#{namespace.id}",
+            params:  { namespace: namespace_data },
+            headers: @user_header
         expect(response).to have_http_status(:forbidden)
       end
     end
@@ -497,7 +544,9 @@ describe API::V1::Namespaces do
       it "does not allow to change the description by owners" do
         namespace = create :namespace, team: team
         expect do
-          put "/api/v1/namespaces/#{namespace.id}", { namespace: namespace_data }, @owner_header
+          put "/api/v1/namespaces/#{namespace.id}",
+              params:  { namespace: namespace_data },
+              headers: @owner_header
         end.to change(PublicActivity::Activity, :count).by(0)
         expect(response).to have_http_status(:forbidden)
       end
@@ -508,15 +557,17 @@ describe API::V1::Namespaces do
 
         expect do
           put "/api/v1/namespaces/#{namespace.id}",
-              { namespace: { team: team2.name } },
-              @owner_header
+              params:  { namespace: { team: team2.name } },
+              headers: @owner_header
         end.to change(PublicActivity::Activity, :count).by(0)
         expect(response).to have_http_status(:forbidden)
       end
 
       it "does not change the visibility" do
         ns = create :namespace, team: team
-        put "/api/v1/namespaces/#{ns.id}", { namespace: { visibility: "public" } }, @owner_header
+        put "/api/v1/namespaces/#{ns.id}",
+            params:  { namespace: { visibility: "public" } },
+            headers: @owner_header
         expect(response).to have_http_status(:forbidden)
       end
 
@@ -527,7 +578,9 @@ describe API::V1::Namespaces do
 
         it "raises an authorization error when trying to change to a non-existing team" do
           namespace = create :namespace, team: team
-          put "/api/v1/namespaces/#{namespace.id}", { namespace: { team: "a" } }, @owner_header
+          put "/api/v1/namespaces/#{namespace.id}",
+              params:  { namespace: { team: "a" } },
+              headers: @owner_header
           expect(response).to have_http_status(:forbidden)
         end
       end

@@ -49,20 +49,20 @@ class NamespacePolicy
 
   def create?
     raise Pundit::NotAuthorizedError, "must be logged in" unless user
+
     (APP_CONFIG.enabled?("user_permission.create_namespace") || user.admin?) && push?
   end
 
   def destroy?
     raise Pundit::NotAuthorizedError, "must be logged in" unless user
 
-    is_owner               = @namespace.team.owners.exists?(user.id)
-    can_contributor_delete = APP_CONFIG["delete"]["contributors"] &&
-                             @namespace.team.contributors.exists?(user.id)
-    delete_enabled? && (@user.admin? || is_owner || can_contributor_delete)
+    can_contributor_delete = APP_CONFIG["delete"]["contributors"] && contributor?
+    delete_enabled? && (@user.admin? || owner? || can_contributor_delete)
   end
 
   def update?
     raise Pundit::NotAuthorizedError, "must be logged in" unless user
+
     (user.admin? || (APP_CONFIG.enabled?("user_permission.manage_namespace") &&
                      owner?)) && push?
   end
@@ -71,6 +71,7 @@ class NamespacePolicy
 
   def change_visibility?
     raise Pundit::NotAuthorizedError, "must be logged in" unless user
+
     user.admin? || (APP_CONFIG.enabled?("user_permission.change_visibility") &&
                     !namespace.global? && owner?)
   end
@@ -78,6 +79,7 @@ class NamespacePolicy
   # Only owners and admins can change the team ownership.
   def change_team?
     raise Pundit::NotAuthorizedError, "must be logged in" unless user
+
     user.admin? || (APP_CONFIG.enabled?("user_permission.manage_namespace") &&
                     owner?)
   end
@@ -108,7 +110,7 @@ class NamespacePolicy
 
     def resolve
       if user.admin?
-        scope.not_portus.order(created_at: :asc)
+        scope.not_portus
       else
         scope
           .joins(team: [:team_users])

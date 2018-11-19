@@ -4,6 +4,8 @@ require "grape-swagger"
 
 require "api/entities"
 require "api/helpers"
+require "api/v1/pagination_params"
+require "api/v1/ordering_params"
 require "api/v1/application_tokens"
 require "api/v1/health"
 require "api/v1/namespaces"
@@ -41,6 +43,11 @@ module API
 
     rescue_from Grape::Exceptions::ValidationErrors do |e|
       bad_request!(e.errors)
+    end
+
+    rescue_from Grape::Exceptions::InvalidMessageBody do |e|
+      msg = e.message.split("\n").last.strip.capitalize
+      bad_request!(msg)
     end
 
     rescue_from Pundit::NotAuthorizedError do |_|
