@@ -107,6 +107,12 @@ ldap:
   # The base where users are located (e.g. "ou=users,dc=example,dc=com").
   base: ""
 
+  # The base where admin users are located.
+  # (e.g. "ou=admin,dc=example,dc=com"). Use this base if you have a separate
+  # route for admin users. Users logging in from this base will be considered
+  # Portus administrators automatically.
+  admin_base: ""
+
   # User filter (e.g. "mail=george*").
   filter: ""
 
@@ -393,7 +399,7 @@ background:
 # Pagination configuration
 pagination:
   # Number of entries to be listed per page
-  limit: 10
+  per_page: 10
 
   # Number of pages to be showed before and after the current one
   # e,g.: Prev 1 2 [3] 4 5 Next

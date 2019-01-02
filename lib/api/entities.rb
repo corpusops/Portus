@@ -122,12 +122,13 @@ module API
         desc: "Whether vulnerabilities have been scanned or not. The values available are: " \
               "0 (not scanned), 1 (work in progress) and 2 (scanning done)."
       }
+      # rubocop:disable Style/SymbolProc
       expose :vulnerabilities, documentation: {
         desc: "A hash of vulnerabilities for this tag, or null if the feature is not enabled"
-      } do |t|
-        vulns = t.fetch_vulnerabilities
-        vulns&.group_by(&:scanner)
+      } do |tag|
+        tag.fetch_vulnerabilities
       end
+      # rubocop:enable Style/SymbolProc
     end
 
     class Repositories < Grape::Entity
@@ -146,7 +147,7 @@ module API
         type: Integer,
         desc: "The repository's registry hostname. Prioritizes external hostname value" \
               "if present, otherwise internal hostname is shown"
-      }, if: { type: :internal } do |repository|
+      }, if: :type do |repository|
         repository.registry.reachable_hostname
       end
       expose :stars, documentation: {
@@ -164,19 +165,19 @@ module API
       expose :tags, documentation: {
         is_array: true,
         desc:     "The repository's tags grouped by digest"
-      }, if: { type: :internal } do |repository|
+      }, if: { type: :search } do |repository|
         repository.groupped_tags.map do |k1|
           API::Entities::Tags.represent(k1)
         end
       end
       expose :starred, documentation: {
         desc: "Boolean that tells if the current user starred the repository"
-      }, if: { type: :internal } do |repository, options|
+      }, if: :type do |repository, options|
         repository.starred_by?(options[:current_user])
       end
       expose :destroyable, documentation: {
         desc: "Boolean that tells if the current user can destroy or not the repository"
-      }, if: { type: :internal } do |repository, options|
+      }, if: :type do |repository, options|
         user = options[:current_user]
         can_destroy_repository?(repository, user) if user
       end
@@ -239,9 +240,14 @@ module API
         role_within_team(options[:current_user], team)
       end
       expose :updatable, documentation: {
-        desc: "Boolean that tells if the current user can manage the team"
+        desc: "Boolean that tells if the current user can destroy the team"
       }, if: { type: :internal } do |team, options|
         can_manage_team?(team, options[:current_user])
+      end
+      expose :destroyable, documentation: {
+        desc: "Boolean that tells if the current user can destroy the team"
+      }, if: { type: :internal } do |team, options|
+        can_destroy_team?(team, options[:current_user])
       end
       expose :users_count, documentation: {
         type: Integer,
@@ -333,6 +339,14 @@ module API
         type: "Boolean",
         desc: "Whether this is the global namespace or not"
       }
+      # rubocop:disable Style/SymbolProc
+      expose :orphan, documentation: {
+        type: "Boolean",
+        desc: "Whether this is an orphan namespace or not"
+      }, if: { type: :internal } do |namespace|
+        namespace.orphan?
+      end
+      # rubocop:enable Style/SymbolProc
       expose :updatable, documentation: {
         desc: "Boolean that tells if the current user can manage the namespace"
       }, if: { type: :internal } do |namespace, options|

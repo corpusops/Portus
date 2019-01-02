@@ -26,7 +26,7 @@ module Portus
         when "on-start"
           !@executed
         when "initial"
-          !@executed && !Repository.any?
+          !@executed && Repository.none?
         else
           Rails.logger.error "Unrecognized value '#{val}' for strategy"
           false
@@ -128,7 +128,7 @@ module Portus
       def delete_maybe!(repositories)
         return if APP_CONFIG["background"]["sync"]["strategy"] == "update"
 
-        portus = User.find_by(username: "portus")
+        portus = User.portus
         Tag.where(repository_id: repositories).find_each { |t| t.delete_by!(portus) }
         Repository.where(id: repositories).find_each { |r| r.delete_by!(portus) }
       end

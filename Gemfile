@@ -19,11 +19,11 @@ gem "omniauth-github"
 gem "omniauth-gitlab"
 gem "omniauth-google-oauth2"
 gem "omniauth-openid"
-gem "public_activity"
+gem "public_activity", "~> 1.6.3"
 gem "pundit"
 gem "rails", "~> 5.2.0"
 gem "redcarpet"
-gem "sass"
+gem "sassc-rails"
 gem "search_cop"
 gem "slim"
 gem "webpack-rails"
@@ -62,7 +62,6 @@ gem "temple"
 
 group :assets do
   gem "bootstrap-sass"
-  gem "sass-rails"
   gem "uglifier"
 end
 

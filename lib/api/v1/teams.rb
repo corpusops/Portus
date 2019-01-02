@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/ClassLength
 module API
   module V1
     class Teams < Grape::API
@@ -104,6 +103,37 @@ module API
                     type:         current_type
           else
             unprocessable_entity!(team.errors.messages)
+          end
+        end
+
+        desc "Deletes a team",
+             entity:  API::Entities::Teams,
+             failure: [
+               [400, "Unprocessable Entity", API::Entities::ApiErrors],
+               [401, "Authentication fails"],
+               [403, "Authorization fails"],
+               [404, "Not found"],
+               [422, "Unprocessable Entity", API::Entities::ApiErrors]
+             ]
+
+        params do
+          requires :id, documentation: { desc: "Team id" }
+          optional :new_team, documentation: { desc: "Team that will get the original namespaces
+            from the deleted team" }
+        end
+
+        delete ":id" do
+          team = Team.find_by!(id: params[:id])
+          new_team = Team.find_by!(name: params[:new_team]) if params[:new_team].present?
+          authorize team, :destroy?
+
+          svc = ::Teams::DestroyService.new(current_user)
+          destroyed = svc.execute(team, new_team)
+
+          if destroyed
+            status 204
+          else
+            unprocessable_entity!(svc.error)
           end
         end
 
@@ -258,4 +288,3 @@ module API
     end
   end
 end
-# rubocop:enable Metrics/ClassLength

@@ -60,6 +60,7 @@ class User < ApplicationRecord
 
   # Actions performed before/after create.
   validates :username, presence: true, uniqueness: true
+  validates :password, confirmation: true
   validate :private_namespace_and_team_available, on: :create
   validate :portus_user_validation, on: :update
   after_create :create_personal_namespace!, if: :needs_namespace?
@@ -76,9 +77,9 @@ class User < ApplicationRecord
   has_many :tags, dependent: :nullify
   has_many :comments, dependent: :destroy
 
-  scope :not_portus, -> { where.not username: "portus" }
-  scope :enabled,    -> { not_portus.where enabled: true }
-  scope :admins,     -> { not_portus.where enabled: true, admin: true }
+  scope :not_portus, -> { where.not(username: "portus") }
+  scope :enabled,    -> { not_portus.where(enabled: true) }
+  scope :admins,     -> { not_portus.where(enabled: true, admin: true) }
 
   class <<self
     attr_accessor :skip_portus_validation
@@ -93,6 +94,11 @@ class User < ApplicationRecord
       email:    "portus@portus.com",
       admin:    true
     )
+  end
+
+  # Returns portus user
+  def self.portus
+    find_by(username: "portus")
   end
 
   # Special method used by Devise to require an email on signup. This is always

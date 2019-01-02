@@ -4,7 +4,7 @@ require "rails_helper"
 
 def find_tag_checkbox(name)
   tag = find("div", text: /\A#{name}\z/)
-  tag.find(:xpath, "../..").find("input[type='checkbox']")
+  tag.find(:xpath, "../..").find(".pretty-checkbox")
 end
 
 describe "Feature: Repositories" do
@@ -33,27 +33,27 @@ describe "Feature: Repositories" do
 
     context "table sorting" do
       it "considers url parameters" do
-        # sort asc & namespace.name
-        visit repositories_path(sort_asc: true, sort_by: "namespace.name")
-        expect(page).to have_css("th:nth-child(2) .fa-sort-amount-asc")
+        # sort asc & updated_at
+        visit repositories_path(sort_asc: true, sort_by: "updated_at")
+        expect(page).to have_css("th:nth-child(4) .fa-sort-amount-asc")
 
-        # sort desc & namespace.name
-        visit repositories_path(sort_asc: false, sort_by: "namespace.name")
-        expect(page).to have_css("th:nth-child(2) .fa-sort-amount-desc")
+        # sort desc & updated_at
+        visit repositories_path(sort_asc: false, sort_by: "updated_at")
+        expect(page).to have_css("th:nth-child(4) .fa-sort-amount-desc")
       end
 
       it "updates url when sorted" do
-        path = repositories_path(sort_asc: true, sort_by: "namespace.name")
-        find(".repositories-panel:last-of-type th:nth-child(2)").click
+        path = repositories_path(sort_asc: true, sort_by: "updated_at")
+        find(".repositories-panel:first-of-type th:nth-child(4)").click
 
-        expect(page).to have_css(".repositories-panel th:nth-child(2) .fa-sort-amount-asc")
+        expect(page).to have_css(".repositories-panel th:nth-child(4) .fa-sort-amount-asc")
         expect(page).to have_current_path(path)
 
-        # sort desc & namespace.name
-        path = repositories_path(sort_asc: false, sort_by: "namespace.name")
-        find(".repositories-panel:last-of-type th:nth-child(2)").click
+        # sort desc & updated_at
+        path = repositories_path(sort_asc: false, sort_by: "updated_at")
+        find(".repositories-panel:first-of-type th:nth-child(4)").click
 
-        expect(page).to have_css(".repositories-panel th:nth-child(2) .fa-sort-amount-desc")
+        expect(page).to have_css(".repositories-panel th:nth-child(4) .fa-sort-amount-desc")
         expect(page).to have_current_path(path)
       end
     end
@@ -90,19 +90,6 @@ describe "Feature: Repositories" do
       it "shows all repositories" do
         expect(page).to have_content(repository.name)
         expect(page).to have_content("Other repositories")
-      end
-    end
-
-    context "when not admin" do
-      before do
-        login_as contributor, scope: :user
-        visit repositories_path
-      end
-
-      it "doesn't show 'other repositories' panel" do
-        expect(page).to have_content(repository.name)
-        expect(page).to have_content(repository2.name)
-        expect(page).not_to have_content("Other repositories")
       end
     end
   end
@@ -177,7 +164,7 @@ describe "Feature: Repositories" do
 
       it "reports vulnerabilities" do
         visit repository_path(repository)
-        expect(page).to have_content("2 vulnerabilities")
+        expect(page).to have_content("2 High - 2 total")
       end
     end
 
@@ -304,8 +291,8 @@ describe "Feature: Repositories" do
             visit repository_path(repository)
 
             expect(page).not_to have_content("Delete tags")
-            find("tbody tr input[type='checkbox']", match: :first)
-            all("tbody tr input[type='checkbox']").each(&:click)
+            find("tbody tr .pretty-checkbox", match: :first)
+            all("tbody tr .pretty-checkbox").each(&:click)
             expect(page).to have_content("Delete tags")
             find(".tag-delete-btn").click
             expect(page).to have_content("Repository removed with all its tags")

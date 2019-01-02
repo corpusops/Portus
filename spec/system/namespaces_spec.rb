@@ -10,6 +10,9 @@ describe "Namespaces support", type: :system, js: true do
   let!(:team) { create(:team, owners: [user], contributors: [user2], viewers: [user3]) }
   let!(:team2) { create(:team, owners: [user]) }
   let!(:namespace) { create(:namespace, team: team, registry: registry) }
+  let!(:orphan_namespace) do
+    create(:namespace, team: registry.global_namespace.team, registry: registry)
+  end
 
   before do
     login_as user, scope: :user
@@ -19,6 +22,12 @@ describe "Namespaces support", type: :system, js: true do
     before do
       visit namespaces_path
       toggle_new_namespace_form
+    end
+
+    it "shows proper namespace and orphan one submit button" do
+      expect(page).to have_link(orphan_namespace.name, count: 1)
+      expect(page).to have_link(namespace.name, count: 1)
+      expect(page).to have_content("Orphan namespaces (no team assigned)")
     end
 
     context "invalid fields" do
@@ -146,37 +155,75 @@ describe "Namespaces support", type: :system, js: true do
   describe "#update" do
     before do
       visit namespace_path(namespace.id)
-      toggle_edit_namespace_form
     end
 
-    context "invalid fields" do
-      it "shows team not found message" do
-        fill_vue_multiselect(".namespace_team", Team.where(hidden: true).first.name)
-
-        expect(page).to have_content("Oops! No team found.")
+    context "form" do
+      before do
+        toggle_edit_namespace_form
       end
 
-      it "shows team can't be blank message" do
-        deselect_vue_multiselect(".namespace_team", namespace.team.name)
+      context "invalid fields" do
+        it "shows team not found message" do
+          fill_vue_multiselect(".namespace_team", Team.where(hidden: true).first.name)
 
-        expect(page).to have_content("Team can't be blank")
-        expect(page).to have_button("Save", disabled: true)
+          expect(page).to have_content("Oops! No team found.")
+        end
+
+        it "shows team can't be blank message" do
+          deselect_vue_multiselect(".namespace_team", namespace.team.name)
+
+          expect(page).to have_content("Team can't be blank")
+          expect(page).to have_button("Save", disabled: true)
+        end
+      end
+
+      it "updates namespace's team" do
+        select_vue_multiselect(".namespace_team", team2.name)
+        click_button "Save"
+
+        expect(page).to have_content("Namespace '#{namespace.name}' was updated successfully")
+      end
+
+      it "user updates namespace's description" do
+        fill_in "Description", with: "Cool description"
+        click_button "Save"
+
+        expect(page).to have_content("Cool description")
+        expect(page).to have_content("Namespace '#{namespace.name}' was updated successfully")
       end
     end
 
-    it "updates namespace's team" do
-      select_vue_multiselect(".namespace_team", team2.name)
-      click_button "Save"
+    context "transfer" do
+      let(:submit_btn) { "I understand, transfer this namespace" }
+      before do
+        toggle_namespace_transfer_modal
+      end
 
-      expect(page).to have_content("Namespace '#{namespace.name}' was updated successfully")
-    end
+      it "transfers namespace to a new team" do
+        select_vue_multiselect(".namespace_team", team2.name)
+        click_button submit_btn
 
-    it "user updates namespace's description" do
-      fill_in "Description", with: "Cool description"
-      click_button "Save"
+        expect(page).to have_content("Namespace '#{namespace.name}' has been transferred "\
+          "successfully")
+      end
 
-      expect(page).to have_content("Cool description")
-      expect(page).to have_content("Namespace '#{namespace.name}' was updated successfully")
+      it "doesn't show global team on modal if orphan" do
+        visit namespace_path(orphan_namespace)
+        toggle_namespace_transfer_modal
+
+        expect(page).not_to have_content("namespace from the #{orphan_namespace.team.name} team")
+      end
+
+      it "cannot submit an empty team" do
+        expect(page).to have_button(submit_btn, disabled: true)
+      end
+
+      it "cannot transfer to the same team" do
+        select_vue_multiselect(".namespace_team", team.name)
+
+        expect(page).to have_content("You cannot select the original team")
+        expect(page).to have_button(submit_btn, disabled: true)
+      end
     end
   end
 
@@ -233,6 +280,7 @@ describe "Namespaces support", type: :system, js: true do
       visit namespace_path(namespace)
 
       click_confirm_popover(".namespace-delete-btn")
+      expect(page).to have_current_path(namespaces_path)
       expect(page).to have_content("Namespace removed with all its repositories")
       expect(page).not_to have_link(namespace.clean_name)
     end
